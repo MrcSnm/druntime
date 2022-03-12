@@ -70,7 +70,7 @@ else version (Darwin)
     else
         static assert(0, "Not implemented for this architecture");
 
-    extern(C) intptr_t _dyld_get_image_slide(const mach_header*) nothrow @nogc;
+    extern(C) intptr_t _dyld_get_image_slide(const mach_header_64*) nothrow @nogc;
 }
 else version (NetBSD)
 {
@@ -170,7 +170,7 @@ private:
     }
     else static if (SharedDarwin)
     {
-        GetTLSAnchor _getTLSAnchor;
+        ImageHeader _header;
     }
     else version (Windows)
     {
@@ -196,9 +196,7 @@ private:
         }
         else static if (SharedDarwin)
         {
-            auto range = getTLSRange(_getTLSAnchor());
-            safeAssert(range !is null, "Could not determine TLS range.");
-            return range;
+            return getTLSRange(_header);
         }
         else version (Windows)
         {
@@ -483,17 +481,13 @@ extern(C) extern __gshared int __rt_dso_ref;
 @assumeUsed __gshared dummy = &__rt_dso_ref;
 
 version (Darwin)
-    private alias ImageHeader = mach_header*;
+    private alias ImageHeader = mach_header_64*;
 else version (Windows)
     private alias ImageHeader = IMAGE_DOS_HEADER*;
 else
     private alias ImageHeader = SharedObject;
 
-version (Darwin)
-{
-    extern(C) alias GetTLSAnchor = void* function() nothrow @nogc;
-}
-else version (Windows)
+version (Windows)
 {
     alias GetTLSRange = void[] function() nothrow @nogc;
 
@@ -516,7 +510,6 @@ package struct CompilerDSOData
     else
     {
         immutable(object.ModuleInfo*)* _minfo_beg, _minfo_end; // array of modules in this object file
-        static if (SharedDarwin) GetTLSAnchor _getTLSAnchor;
     }
 }
 
@@ -564,11 +557,11 @@ package extern(C) void _d_dso_registry(void* arg)
             else
                 pdso._moduleGroup = ModuleGroup(toRange(data._minfo_beg, data._minfo_end));
 
-            static if (SharedDarwin) pdso._getTLSAnchor = data._getTLSAnchor;
-
             ImageHeader header = void;
             const headerFound = findImageHeaderForAddr(data._slot, header);
             safeAssert(headerFound, "Failed to find image header.");
+
+            static if (SharedDarwin) pdso._header = header;
         }
 
         scanSegments(header, pdso);
@@ -1042,7 +1035,7 @@ else
             }
         }
     }
-    else static if (SharedDarwin) void scanSegments(mach_header* info, DSO* pdso)
+    else static if (SharedDarwin) void scanSegments(mach_header_64* info, DSO* pdso)
     {
         immutable slide = _dyld_get_image_slide(info);
         foreachDataSection(info, slide, (sectionData) { pdso._gcRanges.insertBack(sectionData); });

@@ -39,7 +39,7 @@ void[] getTLSRange(const void* tlsSymbol) nothrow @nogc
 {
     foreach (i ; 0 .. _dyld_image_count)
     {
-        const header = cast(const(mach_header_64)*) _dyld_get_image_header(i);
+        const header = cast(const mach_header_64*) _dyld_get_image_header(i);
         auto tlvInfo = tlvInfo(header);
 
         if (tlvInfo.foundTLSRange(tlsSymbol))
@@ -47,6 +47,11 @@ void[] getTLSRange(const void* tlsSymbol) nothrow @nogc
     }
 
     return null;
+}
+void[] getTLSRange(const mach_header_64* header) nothrow @nogc
+{
+    auto tlvInfo = tlvInfo(header);
+    return tlvInfo.tlv_addr[0 .. tlvInfo.tlv_size];
 }
 
 /**
@@ -180,7 +185,7 @@ const(section_64)[] sections(const segment_command_64* segment) pure nothrow @no
 }
 
 /// Invokes the specified delegate for each (non-empty) data section.
-void foreachDataSection(in mach_header* header, intptr_t slide,
+void foreachDataSection(in mach_header_64* header, intptr_t slide,
                         scope void delegate(void[] sectionData) processor)
 {
     foreach (section; [ SECT_DATA, SECT_BSS, SECT_COMMON ])
@@ -192,12 +197,11 @@ void foreachDataSection(in mach_header* header, intptr_t slide,
 }
 
 /// Returns a section's memory range, or null if not found or empty.
-void[] getSection(in mach_header* header, intptr_t slide,
+void[] getSection(in mach_header_64* header, intptr_t slide,
                   in char* segmentName, in char* sectionName)
 {
     safeAssert(header.magic == MH_MAGIC_64, "Unsupported header.");
-    auto sect = getsectbynamefromheader_64(cast(mach_header_64*) header,
-                                           segmentName, sectionName);
+    auto sect = getsectbynamefromheader_64(header, segmentName, sectionName);
 
     if (sect !is null && sect.size > 0)
         return (cast(void*)sect.addr + slide)[0 .. cast(size_t) sect.size];

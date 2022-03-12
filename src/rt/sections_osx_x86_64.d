@@ -124,9 +124,11 @@ __gshared SectionGroup _sections;
 
 extern (C) void sections_osx_onAddImage(const scope mach_header* h, intptr_t slide)
 {
-    foreachDataSection(h, slide, (sectionData) { _sections._gcRanges.insertBack(sectionData); });
+    const header = cast(const mach_header_64*) h;
 
-    auto minfosect = getSection(h, slide, "__DATA", "__minfodata");
+    foreachDataSection(header, slide, (sectionData) { _sections._gcRanges.insertBack(sectionData); });
+
+    auto minfosect = getSection(header, slide, "__DATA", "__minfodata");
     if (minfosect != null)
     {
         // no support for multiple images yet
@@ -148,7 +150,7 @@ extern (C) void sections_osx_onAddImage(const scope mach_header* h, intptr_t sli
         _sections._moduleGroup = ModuleGroup(p[0 .. len]);
     }
 
-    auto ehsect = getSection(h, slide, "__DATA", "__deh_eh");
+    auto ehsect = getSection(header, slide, "__DATA", "__deh_eh");
     if (ehsect != null)
     {
         debug(PRINTF) printf("  deh_eh\n");

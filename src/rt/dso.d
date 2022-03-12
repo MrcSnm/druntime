@@ -45,8 +45,6 @@ version (Posix)
         dsoData._slot = &dsoSlot;
         dsoData._minfo_beg = &__start___minfo;
         dsoData._minfo_end = &__stop___minfo;
-        version (Darwin)
-            dsoData._getTLSAnchor = &getTLSAnchor;
 
         _d_dso_registry(&dsoData);
     }
@@ -72,15 +70,6 @@ version (Posix)
         {
             immutable ModuleInfo* __start___minfo;
             immutable ModuleInfo* __stop___minfo;
-        }
-    }
-
-    version (Darwin)
-    {
-        align(16) byte tlsAnchor = 1;
-        extern(C) void* getTLSAnchor() nothrow @nogc
-        {
-            return &tlsAnchor;
         }
     }
 }
