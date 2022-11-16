@@ -31,12 +31,42 @@ else
     import core.internal.execinfo;
 
 /// C interface for Runtime.loadLibrary
-extern (C) void* rt_loadLibrary(const char* name);
+version(Android)
+{
+    pragma(lib, "log"); //Necessary for the __android_log_print
+    private extern(C) @system nothrow @nogc int __android_log_print(int prio, const(char)* tag, const(char)* fmt, ...);
+    
+    extern(C) void* rt_loadLibrary(const char* name)
+    {
+        import core.sys.posix.dlfcn : dlopen, RTLD_LAZY;
+        enum ANDROID_LOG_WARN = 5;
+        __android_log_print(5, "DRuntime", "rt_loadLibrary is unimplemented for Android, returning dlopen()");
+        return dlopen(name, RTLD_LAZY);
+    }
+}
+else
+{
+    extern (C) void* rt_loadLibrary(const char* name);
+}
 /// ditto
 version (Windows) extern (C) void* rt_loadLibraryW(const wchar* name);
 
-/// C interface for Runtime.unloadLibrary, returns 1/0 instead of bool
-extern (C) int rt_unloadLibrary(void* ptr);
+
+version(Android)
+{
+    extern(C) void* rt_unloadLibrary(void* ptr)
+    {
+        import core.sys.posix.dlfcn : dlclose;
+        enum ANDROID_LOG_WARN = 5;
+        __android_log_print(5, "DRuntime", "rt_unloadLibrary is unimplemented for Android, returning dlclose()");
+        return dlclose(ptr);
+    }
+}
+else
+{
+    /// C interface for Runtime.unloadLibrary, returns 1/0 instead of bool
+    extern (C) int rt_unloadLibrary(void* ptr);
+}
 
 /// C interface for Runtime.initialize, returns 1/0 instead of bool
 extern(C) int rt_init();
